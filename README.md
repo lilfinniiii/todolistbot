@@ -81,7 +81,7 @@ TodoListBot is a Telegram bot designed to help users manage their to-do lists ef
 
 ## Note:
 - Ensure that tasks are described accurately to avoid confusion during task management operations.
-- Use appropriate status keywords (e.g., Pending, In Progress, Done) to categorize tasks effectively.
+- Use appropriate status keywords (e.g., todo, doing, done) to categorize tasks effectively.
 
 ## Feedback and Support:
 - For any inquiries, feedback, or assistance, please feel free to contact the bot developer directly via Telegram.
