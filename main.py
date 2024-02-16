@@ -16,7 +16,14 @@ HELP_COMMANDS = """
 <b>/delete [task] [status]</b> - delete task in todolist.
 <b>/move [task] [new_status]</b> - moved task in any status todolist.
 <b>/help</b> - this commands.
-<b>/commands</b> == <b>/help</b>"""
+<b>/commands</b> == <b>/help</b>
+<b>/contact</b> - send contact bot`s developer"""
+
+@dp.message(Command('contact'))
+async def contact_command(message: types.Message):
+    await message.answer("""
+    <b>telegram</b> - @lilfinniiii
+<b>github</b> - https://github.com/lilfinniiii""", parse_mode='HTML')
 
 @dp.message(Command('help', 'commands'))
 async def help_commands(message: types.Message):
