@@ -15,8 +15,8 @@ HELP_COMMANDS = """
 <b>/add [task] [status]</b> - add task in todolist.
 <b>/delete [task] [status]</b> - delete task in todolist.
 <b>/move [task] [new_status]</b> - moved task in any status todolist.
+<b>/list</b> - show all tasks
 <b>/help</b> - this commands.
-<b>/commands</b> == <b>/help</b>
 <b>/contact</b> - send contact bot`s developer"""
 
 @dp.message(Command('contact'))
@@ -25,7 +25,7 @@ async def contact_command(message: types.Message):
     <b>telegram</b> - @lilfinniiii
 <b>github</b> - https://github.com/lilfinniiii""", parse_mode='HTML')
 
-@dp.message(Command('help', 'commands'))
+@dp.message(Command('help'))
 async def help_commands(message: types.Message):
     await message.answer(text=HELP_COMMANDS, parse_mode='HTML')
 
@@ -48,7 +48,7 @@ async def add_task(message: types.Message):
     else:
         await message.reply("use command /add '[name task]' '[status]' for add task")
 
-@dp.message(Command('show', 'list'))
+@dp.message(Command('list'))
 async def show_tasks(message: types.Message):
     response = ""
     for status, tasks in user_todos.items():
