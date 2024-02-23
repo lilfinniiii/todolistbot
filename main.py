@@ -7,26 +7,32 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters.command import Command
 from config import TOKEN_API
 
-conn = sqlite3.connect('todos.db')
-cursor = conn.cursor()
+async def user_db(user_id):
+    db_name = f"user_{user_id}_todos.db"
+    conn = sqlite3.connect(db_name)
+    cursor = conn.cursor()
 
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS tasks (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        status TEXT
-    )
-''')
-conn.commit()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            status TEXT
+        )
+    ''')
+    conn.commit()
+    return conn, cursor
+
+
+
+
+
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(TOKEN_API)
 dp = Dispatcher()
 
 valid_statuses = ['todo', 'doing', 'done']
-for status in valid_statuses:
-    cursor.execute('INSERT OR IGNORE INTO tasks (name, status) VALUES (?, ?)', ('', status))
-    cursor.execute('DELETE FROM tasks WHERE name = ? AND status = ?', ('', status))
+
 
 
 class AddTaskStates(StatesGroup):
@@ -83,6 +89,7 @@ async def process_task(message: types.Message, state: FSMContext):
         await message.answer("task cannot be empty. please write your task again.")
 @dp.message(AddTaskStates.status)
 async def process_status(message: types.Message, state: FSMContext):
+    conn, cursor = await user_db(message.from_user.id)
     status = message.text
     if status in valid_statuses:
         await state.update_data(status=status)
@@ -91,7 +98,9 @@ async def process_status(message: types.Message, state: FSMContext):
         cursor.execute('SELECT name FROM tasks WHERE name = ?', (task,))
         existing_task  = cursor.fetchall()
         if existing_task:
-            task += " - copy"
+            await message.answer('theres already such a task.')
+            await state.clear()
+            return
         cursor.execute('INSERT INTO tasks (name, status) VALUES (?, ?)', (task, status))
         conn.commit()
         await message.answer('task added successfully!')
@@ -100,6 +109,7 @@ async def process_status(message: types.Message, state: FSMContext):
         await message.answer(f"'status '{status}' not found'")
 @dp.message(Command('list'))
 async def show_tasks(message: types.Message):
+    conn, cursor = await user_db(message.from_user.id)
     cursor.execute('SELECT name, status FROM tasks')
     tasks = cursor.fetchall()
 
@@ -120,6 +130,7 @@ async def delete_task(message: types.Message, state: FSMContext):
 
 @dp.message(DeleteTask.waiting_for_status)
 async def process_delete(message: types.Message, state: FSMContext):
+    conn, cursor = await user_db(message.from_user.id)
     status = message.text.lower()
 
     if status not in valid_statuses:
@@ -145,6 +156,7 @@ async def process_delete(message: types.Message, state: FSMContext):
 
 @dp.message(DeleteTask.waiting_for_delete)
 async def process_task_number(message: types.Message, state: FSMContext):
+    conn, cursor = await user_db(message.from_user.id)
     task_number = int(message.text)
     data = await state.get_data()
     tasks = data.get('tasks')
@@ -167,6 +179,7 @@ async def move_task(message: types.Message, state: FSMContext):
 
 @dp.message(MoveTask.move_status)
 async def move_status(message: types.Message, state: FSMContext):
+    conn, cursor = await user_db(message.from_user.id)
     status = message.text.lower()
 
     if status not in valid_statuses:
@@ -205,6 +218,7 @@ async def move_choose(message: types.Message, state: FSMContext):
 
 @dp.message(MoveTask.move_finish)
 async def move_finish(message: types.Message, state: FSMContext):
+    conn, cursor = await user_db(message.from_user.id)
     new_status = message.text.lower()
     data = await state.get_data()
     tasks = data.get('tasks')
