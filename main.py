@@ -17,8 +17,10 @@ async def user_db(user_id):
         CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
+            status TEXT,
             description TEXT,
-            status TEXT
+            file_id TEXT,
+            file_type TEXT
         )
     ''')
     conn.commit()
@@ -36,6 +38,7 @@ class AddTaskStates(StatesGroup):
     task = State()
     description = State()
     status = State()
+    file_id = State()
 
 
 class DeleteTask(StatesGroup):
@@ -54,9 +57,9 @@ class ListTask(StatesGroup):
 
 HELP_COMMANDS = """
 <b>/start</b> - start bot.
-<b>/add [task] [status]</b> - add task in todolist.
-<b>/delete [task] [status]</b> - delete task in todolist.
-<b>/move [task] [new_status]</b> - moved task in any status todolist.
+<b>/add</b> - add task in todolist.
+<b>/delete</b> - delete task in todolist.
+<b>/move</b> - moved task in any status todolist.
 <b>/list</b> - show all tasks
 <b>/help</b> - this commands.
 <b>/contact</b> - send contact bot`s developer"""
@@ -96,12 +99,53 @@ async def process_task(message: types.Message, state: FSMContext):
         return
     if task:
         await state.update_data(task=task)
-        await message.answer('write the status of the task')
-        await state.set_state(AddTaskStates.status)
+        await message.answer('write the description of the task')
+        await message.answer('if not write "/skip"')
+        await state.set_state(AddTaskStates.description)
     else:
         await message.answer("task cannot be empty. please write your task again.")
 
+@dp.message(AddTaskStates.description)
+async def process_descr(message: types.Message, state: FSMContext):
+    if message.text == '/skip':
+        description = 'nothing'
+    else:
+        description = message.text
+    if description:
+        await state.update_data(description=description)
+        await message.answer('attach the file if you want.')
+        await message.answer('if not write "/skip"')
+        await state.set_state(AddTaskStates.file_id)
+    else:
+        await message.answer("description cannot be empty. please write your task again.")
 
+@dp.message(AddTaskStates.file_id)
+async def process_file(message: types.Message, state: FSMContext):
+    file_id = None
+    file_type = ""
+    if message.document:
+        file_id = message.document.file_id
+        file_type = 'document'
+    elif message.photo:
+        file_id = message.photo[-1].file_id
+        file_type = 'photo'
+    elif message.audio:
+        file_id = message.audio.file_id
+        file_type = 'audio'
+    elif message.voice:
+        file_id = message.voice.file_id
+        file_type = 'voice'
+    elif message.text == '/skip':
+        await message.answer('okay, skip')
+        await state.set_state(AddTaskStates.status)
+    else:
+        await message.reply("Please upload a file.")
+        return
+
+    await state.update_data(file_id=file_id)
+    await state.update_data(file_type=file_type)
+    await message.answer('write the status of task.')
+    await state.set_state(AddTaskStates.status)
 @dp.message(AddTaskStates.status)
 async def process_status(message: types.Message, state: FSMContext):
     conn, cursor = await user_db(message.from_user.id)
@@ -111,9 +155,11 @@ async def process_status(message: types.Message, state: FSMContext):
         await state.clear()
         return
     if status in valid_statuses:
-        await state.update_data(status=status)
         data = await state.get_data()
         task = data.get('task')
+        description = data.get('description')
+        file_id = data.get('file_id')
+        file_type = data.get('file_type')
         cursor.execute('SELECT name FROM tasks WHERE name = ?', (task,))
         existing_task = cursor.fetchall()
 
@@ -121,7 +167,7 @@ async def process_status(message: types.Message, state: FSMContext):
             await message.answer('theres already such a task.')
             await state.clear()
             return
-        cursor.execute('INSERT INTO tasks (name, status) VALUES (?, ?)', (task, status))
+        cursor.execute('INSERT INTO tasks (name, status, description, file_id, file_type) VALUES (?, ?, ?, ?, ?)', (task, status, description, file_id, file_type))
         conn.commit()
         await message.answer('task added successfully!')
         await state.clear()
@@ -132,7 +178,7 @@ async def process_status(message: types.Message, state: FSMContext):
 @dp.message(Command('list'))
 async def show_tasks(message: types.Message, state: FSMContext):
     conn, cursor = await user_db(message.from_user.id)
-    cursor.execute('SELECT id, name, status FROM tasks')
+    cursor.execute('SELECT id, name, status, description, file_id, file_type FROM tasks')
     tasks = cursor.fetchall()
 
     response = ""
@@ -143,7 +189,7 @@ async def show_tasks(message: types.Message, state: FSMContext):
 
         if tasks_for_status:
             for task in tasks_for_status:
-                task_id, task_name, _ = task
+                task_id, task_name, _, _, _, _ = task
                 response += f"{total_index}. {task_name}\n"
                 total_index += 1
 
@@ -161,7 +207,7 @@ async def show_info(message: types.Message, state: FSMContext):
     tasks = data.get('tasks')
 
     if message.text == '/stop':
-        await message.answer('Okay, bye')
+        await message.answer('okay, bye')
         await state.clear()
         return
 
@@ -174,13 +220,26 @@ async def show_info(message: types.Message, state: FSMContext):
     if 1 <= task_number <= len(tasks):
         task_name = tasks[task_number - 1][1]
         task_status = tasks[task_number - 1][2]
+        task_description = tasks[task_number - 1][3]
+        file_id = tasks[task_number - 1][4]
+        file_type = tasks[task_number - 1][5]
+
 
         response = f"""
 <b>{task_name}</b>
-Status: {task_status}
-Describtion: bfasdasdaaaaadddddddddddddddd asd dsad as asd asd asd asd asd asd asd asd asd asd asd sad asd asd asd as
-Files: image"""
+<b>status:</b> {task_status}
+<b>description:</b> {task_description}
+<b>files:</b>"""
         await message.answer(response, parse_mode='HTML')
+        if file_type == 'document':
+            await message.answer_document(file_id)
+        if file_type == 'photo':
+            await message.answer_photo(file_id)
+        if file_type == 'audio':
+            await message.answer_audio(file_id)
+        if file_type == 'voice':
+            await message.answer_voice(file_id)
+        await state.clear()
     else:
         await message.answer("Invalid task number.")
 
@@ -263,8 +322,9 @@ async def move_task(message: types.Message, state: FSMContext):
                 response += f"{total_index}. {task_name}\n"
                 total_index += 1
 
+
     response += "enter the number of the task you want to move:"
-    await message.reply(response)
+    await message.reply(response, parse_mode='HTML')
     await message.answer('write "/stop" to stop')
     await state.update_data(tasks=tasks)
     await state.set_state(MoveTask.move_choose)
@@ -298,6 +358,8 @@ async def move_choose(message: types.Message, state: FSMContext):
 async def move_finish(message: types.Message, state: FSMContext):
     conn, cursor = await user_db(message.from_user.id)
     new_status = message.text.lower()
+    print("New status:", new_status)
+
     if message.text == '/stop':
         await message.answer('okay, bye')
         await state.clear()
@@ -305,14 +367,17 @@ async def move_finish(message: types.Message, state: FSMContext):
     data = await state.get_data()
     tasks = data.get('tasks')
     task_number = data.get('task_number')
+    print("Task number:", task_number)
 
     if new_status in valid_statuses:
         task_id_to_move = tasks[task_number - 1][0]
+        print("Task ID to move:", task_id_to_move)
+
         cursor.execute('SELECT name FROM tasks WHERE id = ?', (task_id_to_move,))
         task_name = cursor.fetchone()[0]
         cursor.execute('UPDATE tasks SET status = ? WHERE id = ?', (new_status, task_id_to_move))
         conn.commit()
-        await message.reply(f"task {task_name} moved to {new_status} successfully!")
+        await message.reply(f"task '{task_name}' moved to {new_status} successfully!")
         await state.clear()
     else:
         await message.reply("invalid new status.")
