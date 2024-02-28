@@ -1,46 +1,60 @@
 # TodoListBot Documentation
 
 ## Overview:
-TodoListBot is a Telegram bot designed to help users manage their to-do lists effectively. It provides functionalities such as adding, deleting, and moving tasks across different statuses in the to-do list. This bot simplifies task management by providing a user-friendly interface within the Telegram app.
+TodoListBot is a Telegram bot tailored for efficient to-do list management. It empowers users to seamlessly add, delete, and manipulate tasks across various statuses within their to-do lists, all within the Telegram platform. With its intuitive interface, TodoListBot simplifies task organization and enhances productivity.
 
 ## Getting Started:
-1. **Start the Bot**: Begin by searching for `@liltodolistbot` on Telegram and initiating a conversation by sending the `/start` command.
-2. **Commands**:
-    - `/add [task] [status]`: Add a new task to the to-do list with the specified status.
-    - `/delete [task] [status]`: Delete a task from the to-do list based on its description and status.
-    - `/move [task] [new_status]`: Move a task to a new status in the to-do list.
-    - `/help` or `/commands`: Display available commands and usage instructions.
+- **Starting the Bot**: Initiate a conversation with TodoListBot by searching for `@liltodolistbot` on Telegram and sending the `/start` command.
+- **Commands**:
+    - `/add`: Add a new task to the to-do list.
+    - `/delete`: Remove a task from the to-do list.
+    - `/move`: Change the status of a task within the to-do list.
+    - `/list`: Display all tasks categorized by their statuses.
+    - `/contact`: Get in touch with the bot developer.
+    - `/help`: Access a list of available commands and usage instructions.
 
 ## Command Details:
-1. **/add [task] [status]**:
-    - Example: `/add  Review-user-feedback doing`
-    - Description: Adds a new task with the provided description and assigns it to the specified status.
+1. **/add**:
+    - **Description**: Allows users to add a new task to their to-do list.
+    - **Usage**: `/add`
+    - **Workflow**:
+        1. User initiates the command.
+        2. User provides the task description, description, and optionally attaches a file.
+        3. User specifies the status of the task (todo, doing, done).
+        4. Task is added to the to-do list.
+2. **/delete**:
+    - **Description**: Enables users to delete a task from their to-do list.
+    - **Usage**: `/delete`
+    - **Workflow**:
+        1. User initiates the command.
+        2. User selects the task to delete based on its description and status.
+        3. Selected task is removed from the to-do list.
+3. **/move**:
+    - **Description**: Facilitates moving a task to a different status within the to-do list.
+    - **Usage**: `/move`
+    - **Workflow**:
+        1. User initiates the command.
+        2. User selects the task to move based on its description and current status.
+        3. User specifies the new status for the task.
+        4. Task is transitioned to the new status within the to-do list.
+4. **/contact**:
+    - **Description**: Provides a way to get in touch with the bot developer.
+    - **Usage**: `/contact`
+    - **Workflow**:
+        1. User initiates the command.
+        2. Information about contacting the bot developer is displayed.
 
-2. **/delete [task] [status]**:
-    - Example: `/delete  Review-user-feedback doing`
-    - Description: Deletes the task matching the provided description and status from the to-do list.
-
-3. **/move [task] [new_status]**:
-    - Example: `/move  Review-user-feedback done`
-    - Description: Moves the task matching the provided description to the new status in the to-do list.
-
-4. **/help** or **/commands**:
-    - Description: Displays a list of available commands along with their usage instructions.
-
-## Example Usage:
-- **Adding a Task**: `/add Review-user-feedback doing`
-- **Deleting a Task**: `/delete Review-user-feedback doing`
-- **Moving a Task**: `/move Review-user-feedback done`
 
 ## Note:
-- Ensure that tasks are described accurately to avoid confusion during task management operations.
-- Use appropriate status keywords (e.g., todo, doing, done) to categorize tasks effectively.
+- Ensure tasks are described accurately to avoid confusion during task management operations.
+- Utilize appropriate status keywords (todo, doing, done) for effective organization of tasks.
 
 ## Feedback and Support:
-- For any inquiries, feedback, or assistance, please feel free to contact the bot developer directly via Telegram.
+- For inquiries, feedback, or support, users can directly contact the bot developer via Telegram.
 
 ## Credits:
 - TodoListBot is developed and maintained by lilfinniiii.
 
 ## Disclaimer:
 - TodoListBot is provided as-is without any warranties. Users are responsible for their interactions and data management with the bot.
+
