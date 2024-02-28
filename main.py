@@ -31,9 +31,6 @@ logging.basicConfig(level=logging.INFO)
 bot = Bot(TOKEN_API)
 dp = Dispatcher()
 
-valid_statuses = ['todo', 'doing', 'done']
-
-
 class AddTaskStates(StatesGroup):
     task = State()
     description = State()
@@ -80,6 +77,7 @@ async def help_commands(message: types.Message):
 @dp.message(Command('start'))
 async def cmd_start(message: types.Message):
     await message.answer("yo, i`m to-do list bot :0")
+    await message.answer("write <b>/help</b> to see a commands", parse_mode='HTML')
     await message.delete()
 
 
@@ -149,30 +147,27 @@ async def process_file(message: types.Message, state: FSMContext):
 @dp.message(AddTaskStates.status)
 async def process_status(message: types.Message, state: FSMContext):
     conn, cursor = await user_db(message.from_user.id)
-    status = message.text
+    status = message.text.lower()
     if message.text == '/stop':
         await message.answer('okay, bye')
         await state.clear()
         return
-    if status in valid_statuses:
-        data = await state.get_data()
-        task = data.get('task')
-        description = data.get('description')
-        file_id = data.get('file_id')
-        file_type = data.get('file_type')
-        cursor.execute('SELECT name FROM tasks WHERE name = ?', (task,))
-        existing_task = cursor.fetchall()
+    data = await state.get_data()
+    task = data.get('task')
+    description = data.get('description')
+    file_id = data.get('file_id')
+    file_type = data.get('file_type')
+    cursor.execute('SELECT name FROM tasks WHERE name = ?', (task,))
+    existing_task = cursor.fetchall()
 
-        if existing_task:
-            await message.answer('theres already such a task.')
-            await state.clear()
-            return
-        cursor.execute('INSERT INTO tasks (name, status, description, file_id, file_type) VALUES (?, ?, ?, ?, ?)', (task, status, description, file_id, file_type))
-        conn.commit()
-        await message.answer('task added successfully!')
+    if existing_task:
+        await message.answer('theres already such a task.')
         await state.clear()
-    else:
-        await message.answer(f"'status '{status}' not found'")
+        return
+    cursor.execute('INSERT INTO tasks (name, status, description, file_id, file_type) VALUES (?, ?, ?, ?, ?)', (task, status, description, file_id, file_type))
+    conn.commit()
+    await message.answer('task added successfully!')
+    await state.clear()
 
 
 @dp.message(Command('list'))
@@ -185,7 +180,7 @@ async def show_tasks(message: types.Message, state: FSMContext):
     total_index = 1
     for task in tasks:
         task_id, task_name, task_status = task
-        response += f"{total_index}. <b>{task_name}</b> - <b>{task_status.capitalize()}</b>\n"
+        response += f"{total_index}. <b>{task_name}</b> - <b>{task_status}</b>\n"
         total_index += 1
 
     await message.reply(response, parse_mode='HTML')
@@ -222,7 +217,7 @@ async def show_info(message: types.Message, state: FSMContext):
 
         response = f"""
 Task: {task_name}
-Status: {task_status.capitalize()}
+Status: {task_status}
 Description: {task_description}
 Files:"""
 
@@ -257,7 +252,7 @@ async def delete_task(message: types.Message, state: FSMContext):
     total_index = 1
     for task in tasks:
         task_id, task_name, task_status = task
-        response += f"{total_index}. <b>{task_name}</b> - <b>{task_status.capitalize()}</b>\n"
+        response += f"{total_index}. <b>{task_name}</b> - <b>{task_status}</b>\n"
         total_index += 1
 
     response += "enter the number of the task you want to delete:"
@@ -308,7 +303,7 @@ async def move_task(message: types.Message, state: FSMContext):
     total_index = 1
     for task in tasks:
         task_id, task_name, task_status = task
-        response += f"{total_index}. <b>{task_name}</b> - <b>{task_status.capitalize()}</b>\n"
+        response += f"{total_index}. <b>{task_name}</b> - <b>{task_status}</b>\n"
         total_index += 1
 
 
@@ -356,18 +351,14 @@ async def move_finish(message: types.Message, state: FSMContext):
     data = await state.get_data()
     tasks = data.get('tasks')
     task_number = data.get('task_number')
+    task_id_to_move = tasks[task_number - 1][0]
 
-    if new_status in valid_statuses:
-        task_id_to_move = tasks[task_number - 1][0]
-
-        cursor.execute('SELECT name FROM tasks WHERE id = ?', (task_id_to_move,))
-        task_name = cursor.fetchone()[0]
-        cursor.execute('UPDATE tasks SET status = ? WHERE id = ?', (new_status, task_id_to_move))
-        conn.commit()
-        await message.reply(f"task '{task_name}' moved to {new_status} successfully!")
-        await state.clear()
-    else:
-        await message.reply("invalid new status.")
+    cursor.execute('SELECT name FROM tasks WHERE id = ?', (task_id_to_move,))
+    task_name = cursor.fetchone()[0]
+    cursor.execute('UPDATE tasks SET status = ? WHERE id = ?', (new_status, task_id_to_move))
+    conn.commit()
+    await message.reply(f"task '{task_name}' moved to {new_status} successfully!")
+    await state.clear()
 
 
 async def main():
