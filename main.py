@@ -178,24 +178,20 @@ async def process_status(message: types.Message, state: FSMContext):
 @dp.message(Command('list'))
 async def show_tasks(message: types.Message, state: FSMContext):
     conn, cursor = await user_db(message.from_user.id)
-    cursor.execute('SELECT id, name, status, description, file_id, file_type FROM tasks')
+    cursor.execute('SELECT id, name, status FROM tasks')
     tasks = cursor.fetchall()
 
-    response = ""
+    response = "Tasks:\n"
     total_index = 1
-    for status in valid_statuses:
-        response += f"<b>**{status.capitalize()}**</b>:\n"
-        tasks_for_status = [task for task in tasks if task[2] == status]
-
-        if tasks_for_status:
-            for task in tasks_for_status:
-                task_id, task_name, _, _, _, _ = task
-                response += f"{total_index}. {task_name}\n"
-                total_index += 1
+    for task in tasks:
+        task_id, task_name, task_status = task
+        response += f"{total_index}. <b>{task_name}</b> - <b>{task_status.capitalize()}</b>\n"
+        total_index += 1
 
     await message.reply(response, parse_mode='HTML')
-    await message.answer('if you want to see the full info about the task, write the number of this task.')
-    await message.answer('if you don`t want write "/stop".')
+
+    await message.answer('To see the full info about a task, enter its number.')
+    await message.answer('To cancel, enter "/stop".')
     await state.update_data(tasks=tasks)
     await state.set_state(ListTask.show_full_task)
 
@@ -207,7 +203,7 @@ async def show_info(message: types.Message, state: FSMContext):
     tasks = data.get('tasks')
 
     if message.text == '/stop':
-        await message.answer('okay, bye')
+        await message.answer('Cancelled.')
         await state.clear()
         return
 
@@ -218,31 +214,34 @@ async def show_info(message: types.Message, state: FSMContext):
         return
 
     if 1 <= task_number <= len(tasks):
-        task_name = tasks[task_number - 1][1]
-        task_status = tasks[task_number - 1][2]
-        task_description = tasks[task_number - 1][3]
-        file_id = tasks[task_number - 1][4]
-        file_type = tasks[task_number - 1][5]
+        task_id, task_name, task_status = tasks[task_number - 1]
 
+        cursor.execute('SELECT description, file_id, file_type FROM tasks WHERE id = ?', (task_id,))
+        task_info = cursor.fetchone()
+        task_description, file_id, file_type = task_info
 
         response = f"""
-<b>{task_name}</b>
-<b>status:</b> {task_status}
-<b>description:</b> {task_description}
-<b>files:</b>"""
-        await message.answer(response, parse_mode='HTML')
+Task: {task_name}
+Status: {task_status.capitalize()}
+Description: {task_description}
+Files:"""
+
+        await message.answer(response)
+
         if file_type == 'document':
             await message.answer_document(file_id)
-        if file_type == 'photo':
+        elif file_type == 'photo':
             await message.answer_photo(file_id)
-        if file_type == 'audio':
+        elif file_type == 'audio':
             await message.answer_audio(file_id)
-        if file_type == 'voice':
+        elif file_type == 'voice':
             await message.answer_voice(file_id)
+        else:
+            await message.answer("No files attached.")
+
         await state.clear()
     else:
         await message.answer("Invalid task number.")
-
 
 @dp.message(Command('delete'))
 async def delete_task(message: types.Message, state: FSMContext):
@@ -254,17 +253,12 @@ async def delete_task(message: types.Message, state: FSMContext):
         await message.reply(f"there is not a single task")
         return
 
-    response = ""
+    response = "Tasks:\n"
     total_index = 1
-    for status in valid_statuses:
-        response += f"<b>**{status.capitalize()}**</b>:\n"
-        tasks_for_status = [task for task in tasks if task[2] == status]
-
-        if tasks_for_status:
-            for task in tasks_for_status:
-                task_id, task_name, _ = task
-                response += f"{total_index}. {task_name}\n"
-                total_index += 1
+    for task in tasks:
+        task_id, task_name, task_status = task
+        response += f"{total_index}. <b>{task_name}</b> - <b>{task_status.capitalize()}</b>\n"
+        total_index += 1
 
     response += "enter the number of the task you want to delete:"
     await message.reply(response, parse_mode="HTML")
@@ -310,17 +304,13 @@ async def move_task(message: types.Message, state: FSMContext):
         await message.reply(f"there is not a single task")
         return
 
-    response = ""
+    response = "Tasks:\n"
     total_index = 1
-    for status in valid_statuses:
-        response += f"<b>**{status.capitalize()}**</b>:\n"
-        tasks_for_status = [task for task in tasks if task[2] == status]
+    for task in tasks:
+        task_id, task_name, task_status = task
+        response += f"{total_index}. <b>{task_name}</b> - <b>{task_status.capitalize()}</b>\n"
+        total_index += 1
 
-        if tasks_for_status:
-            for task in tasks_for_status:
-                task_id, task_name, _ = task
-                response += f"{total_index}. {task_name}\n"
-                total_index += 1
 
 
     response += "enter the number of the task you want to move:"
@@ -358,7 +348,6 @@ async def move_choose(message: types.Message, state: FSMContext):
 async def move_finish(message: types.Message, state: FSMContext):
     conn, cursor = await user_db(message.from_user.id)
     new_status = message.text.lower()
-    print("New status:", new_status)
 
     if message.text == '/stop':
         await message.answer('okay, bye')
@@ -367,11 +356,9 @@ async def move_finish(message: types.Message, state: FSMContext):
     data = await state.get_data()
     tasks = data.get('tasks')
     task_number = data.get('task_number')
-    print("Task number:", task_number)
 
     if new_status in valid_statuses:
         task_id_to_move = tasks[task_number - 1][0]
-        print("Task ID to move:", task_id_to_move)
 
         cursor.execute('SELECT name FROM tasks WHERE id = ?', (task_id_to_move,))
         task_name = cursor.fetchone()[0]
