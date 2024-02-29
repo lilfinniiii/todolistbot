@@ -26,6 +26,11 @@ async def user_db(user_id):
     conn.commit()
     return conn, cursor
 
+async def update_task_list(user_id):
+    conn, cursor = await user_db(user_id)
+    cursor.execute('SELECT id, name, status FROM tasks ')
+    tasks = cursor.fetchall()
+    return tasks
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(TOKEN_API)
@@ -358,6 +363,10 @@ async def move_finish(message: types.Message, state: FSMContext):
     cursor.execute('UPDATE tasks SET status = ? WHERE id = ?', (new_status, task_id_to_move))
     conn.commit()
     await message.reply(f"task '{task_name}' moved to {new_status} successfully!")
+
+    updated_tasks = await update_task_list(message.from_user.id)
+    await state.update_data(tasks=updated_tasks)
+
     await state.clear()
 
 
